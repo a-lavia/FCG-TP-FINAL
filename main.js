@@ -51,24 +51,36 @@ function render() {
   //TODO Debug: velocityFieldVisualizer.render(renderer);
 }
 
+var isDragging = false;
+
 function mouseDown(event) {
-  event.preventDefault();
-
   switch (event.which) {
-    case 1: //Left click
-      paintShader.uniforms.center.value.x = event.clientX / gridSize;
-      paintShader.uniforms.center.value.y = 1. - event.clientY / gridSize;
-      paintShader.render(renderer, color1, color0);
-      [color0, color1] = [color1, color0];
-      break;
-
-    case 3: //Right click
-      break;
+    //Left click
+    case 1:
+    isDragging = true;
+    break;
+    //Right click
+    case 3:
+    break;
   }
+}
 
+function mouseUp(event) {
+  isDragging = false;
+}
+
+function mouseMove(event) {
+  if (isDragging) {
+    paintShader.uniforms.center.value.x = event.clientX / gridSize;
+    paintShader.uniforms.center.value.y = 1. - event.clientY / gridSize;
+    paintShader.render(renderer, color1, color0);
+    [color0, color1] = [color1, color0];
+  }
 }
 
 window.addEventListener('mousedown', mouseDown, false);
+window.addEventListener('mouseup', mouseUp, false);
+window.addEventListener('mousemove', mouseMove, false);
 
 init();
 render();
