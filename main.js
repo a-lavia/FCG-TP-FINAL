@@ -1,15 +1,17 @@
 //Setup Renderer
+var gridSize = 512;
+
 const renderer = new THREE.WebGLRenderer({antialias: true});
 
 renderer.setPixelRatio(window.devicePixelRatio);
-renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setSize(gridSize, gridSize);
 document.body.appendChild(renderer.domElement);
 
 //TODO Debug: velocityFieldVisualizer = new VelocityFieldVisualizer();
 
-velocity0 = getWebGLRenderTarget();
-color0 = getWebGLRenderTarget();
-color1 = getWebGLRenderTarget();
+var velocity0 = getWebGLRenderTarget();
+var color0 = getWebGLRenderTarget();
+var color1 = getWebGLRenderTarget();
 
 const initVelocityPass = new THREE.ShaderPass(InitVelocityFieldShader);
 const paintShader = new THREE.ShaderPass(PaintShader);
@@ -22,10 +24,8 @@ function getWebGLRenderTarget() {
     magFilter: THREE.LinearFilter,
     format: THREE.RGBAFormat
   };
-  //TODO: Fixed size?
-  const size = renderer.getSize(new THREE.Vector2());
 
-  return new THREE.WebGLRenderTarget(size.width * renderer.getPixelRatio(), size.height * renderer.getPixelRatio(), renderTargetParameters);
+  return new THREE.WebGLRenderTarget(gridSize, gridSize, renderTargetParameters);
 }
 
 function init() {
@@ -51,17 +51,13 @@ function render() {
   //TODO Debug: velocityFieldVisualizer.render(renderer);
 }
 
-function resize() {
-  renderer.setSize(window.innerWidth, window.innerHeight);
-}
-
 function mouseDown(event) {
   event.preventDefault();
 
   switch (event.which) {
     case 1: //Left click
-      paintShader.uniforms.center.value.x = event.clientX / window.innerWidth;
-      paintShader.uniforms.center.value.y = 1. - event.clientY / window.innerHeight;
+      paintShader.uniforms.center.value.x = event.clientX / gridSize;
+      paintShader.uniforms.center.value.y = 1. - event.clientY / gridSize;
       paintShader.render(renderer, color1, color0);
       [color0, color1] = [color1, color0];
       break;
@@ -72,7 +68,6 @@ function mouseDown(event) {
 
 }
 
-window.addEventListener('resize', resize, false);
 window.addEventListener('mousedown', mouseDown, false);
 
 init();
