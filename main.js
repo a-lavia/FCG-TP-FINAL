@@ -30,10 +30,6 @@ function getWebGLRenderTarget() {
 
 function init() {
   initVelocityPass.render(renderer, velocity0, null);
-
-  //TODO: Por algún motivo el setTexture imposibilita modificar la textura en el FBO
-  //let texture = new THREE.TextureLoader().load('texture.jpg');
-  //textureFBO.setTexture(texture);
 }
 
 function render() {

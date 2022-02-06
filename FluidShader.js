@@ -19,7 +19,7 @@ var InitVelocityFieldShader = {
 	varying vec2 vUv;
 
 	void main() {
-		gl_FragColor = vec4(vUv.x, vUv.y, 0.0, 1.0);
+		gl_FragColor = vec4(sin(2.0 * PI * vUv.y + PI/2.), sin(2.0 * PI * vUv.x + PI/2.), 0.0, 1.0);
 	}
 	`
 };
@@ -71,7 +71,7 @@ var FillShader = {
 
 var AdvectionShader = {
 	uniforms: {
-		'delta:': {value: 0.16},
+		'delta': {value: 0.016},
 		'inputTexture': {value: null},
 		'velocity': {value: null}
 	},
@@ -84,7 +84,9 @@ var AdvectionShader = {
 	uniform sampler2D velocity;
 	void main() {
 	  vec2 u = texture2D(velocity, vUv).xy;
-	  vec2 pastCoord = vUv - delta * u;
+		//fract for repeat
+	  vec2 pastCoord = fract(vUv - u * delta);
+		//todo: bilerp
 	  gl_FragColor = texture2D(inputTexture, pastCoord);
 	}
 	`
