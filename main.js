@@ -1,5 +1,6 @@
 //Setup Renderer
 var gridSize = 512;
+var jacobiIterations = 10;
 
 const renderer = new THREE.WebGLRenderer({antialias: true});
 
@@ -10,12 +11,21 @@ document.body.appendChild(renderer.domElement);
 //TODO Debug: velocityFieldVisualizer = new VelocityFieldVisualizer();
 
 var velocity0 = getWebGLRenderTarget();
+var velocity1 = getWebGLRenderTarget();
+
 var color0 = getWebGLRenderTarget();
 var color1 = getWebGLRenderTarget();
+
+var divergence = getWebGLRenderTarget();
+var pressure0 = getWebGLRenderTarget();
+var pressure1 = getWebGLRenderTarget();
 
 const initVelocityPass = new THREE.ShaderPass(InitVelocityFieldShader);
 const paintShader = new THREE.ShaderPass(PaintShader);
 const advectPass = new THREE.ShaderPass(AdvectionShader, 'inputTexture');
+const divergencePass = new THREE.ShaderPass(DivergenceShader, 'velocity');
+const pressureJacobiPass = new THREE.ShaderPass(PressureJacobiShader, 'pressure');
+const substractPressurePass = new THREE.ShaderPass(SubstractPressureGradient, 'velocity');
 const copyPass = new THREE.ShaderPass(THREE.CopyShader);
 
 function getWebGLRenderTarget() {
@@ -35,14 +45,30 @@ function init() {
 function render() {
   requestAnimationFrame(render);
 
-  //advectPass.uniforms.inputTexture.value = color0;
+  //Advect velocity
   advectPass.uniforms.velocity.value = velocity0;
+  advectPass.render(renderer, velocity1, velocity0); //Read velocity0 -> Advect -> write to velocity1
+  [velocity0, velocity1] = [velocity1, velocity0]; //Swap velocity0<->velocity1
 
-  //Read color0 -> advect -> Write to color1
-  advectPass.render(renderer, color1, color0);
+  //Divergence
+  divergencePass.render(renderer, divergence, velocity0); //Read velocity0 -> Divergence -> write to divergence
 
-  //Swap color0 <-> color1
-  [color0, color1] = [color1, color0];
+  //Jacobi Pressure
+  pressureJacobiPass.uniforms.divergence.value = divergence;
+  for (var i = 0; i < jacobiIterations; i++) {
+    pressureJacobiPass.render(renderer, pressure1, pressure0); //Read pressure0 -> Jacobi pass -> write to pressure1
+    [pressure0, pressure1] = [pressure1, pressure0]; //Swap pressure0<->pressure1
+  }
+
+  //Substract
+  substractPressurePass.uniforms.pressure.value = pressure0;
+  substractPressurePass.render(renderer, velocity1, velocity0); //Read velocity0 -> Substract pass -> write to velocity1
+  [velocity0, velocity1] = [velocity1, velocity0]; //Swap velocity0<->velocity1
+
+  //Advect color
+  advectPass.uniforms.velocity.value = velocity0;
+  advectPass.render(renderer, color1, color0); //Read color0 -> Advect -> write to color1
+  [color0, color1] = [color1, color0]; //Swap color0<->color1
 
   //Copy color0 to screen
   copyPass.renderToScreen = true;
