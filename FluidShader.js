@@ -15,14 +15,15 @@ var InitVelocityFieldShader = {
 	vertexShader: defaultVertexShader,
 	fragmentShader:
 	`
-	precision highp float;
-	precision highp sampler2D;
+	precision mediump float;
+	precision mediump sampler2D;
 
 	#define PI 3.1415926538
 	varying vec2 vUv;
 
 	void main() {
-		gl_FragColor = vec4(sin(2.0 * PI * vUv.y + PI/2.), sin(2.0 * PI * vUv.x + PI/2.), 0.0, 1.0);
+		//gl_FragColor = vec4(sin(2.0 * PI * vUv.y + PI/2.), sin(2.0 * PI * vUv.x + PI/2.), 0.0, 1.0);
+		gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
 	}
 	`
 };
@@ -30,18 +31,18 @@ var InitVelocityFieldShader = {
 var PaintShader = {
 	uniforms: {
 		'tDiffuse': { value: null },
-		'rgba': { value: new THREE.Vector4(1., 0., 0., 1.) },
+		'rgb': { value: new THREE.Vector3(1., 0., 0.) },
 		'center': { value: new THREE.Vector2() },
 		'radius': { value: .001 }
 	},
 	vertexShader: defaultVertexShader,
 	fragmentShader:
 	`
-	precision highp float;
-	precision highp sampler2D;
+	precision mediump float;
+	precision mediump sampler2D;
 
 	uniform sampler2D tDiffuse;
-	uniform vec4 rgba;
+	uniform vec3 rgb;
 	uniform vec2 center;
 	uniform float radius;
 
@@ -50,7 +51,7 @@ var PaintShader = {
 	void main() {
 		float dx = center.x - vUv.x;
 		float dy = center.y - vUv.y;
-		gl_FragColor = texture2D(tDiffuse, vUv) + rgba * exp(-(dx * dx + dy * dy) / radius);
+		gl_FragColor = texture2D(tDiffuse, vUv) + vec4(rgb, 1.) * exp(-(dx * dx + dy * dy) / radius);
 	}
 	`
 };
@@ -64,18 +65,20 @@ var AdvectionShader = {
 	vertexShader: defaultVertexShader,
 	fragmentShader:
 	`
-	precision highp float;
-	precision highp sampler2D;
+	precision mediump float;
+	precision mediump sampler2D;
 
 	varying vec2 vUv;
+
 	uniform float delta;
 	uniform sampler2D inputTexture;
 	uniform sampler2D velocity;
+
 	void main() {
-	  vec2 u = texture2D(velocity, vUv).xy;
 	  //vec2 pastCoord = fract(vUv - u * delta); //fract for repeat
-	  vec2 pastCoord = vUv - u * delta;
-	  gl_FragColor = texture2D(inputTexture, pastCoord);
+	  vec2 pastCoord = vUv - texture2D(velocity, vUv).xy * delta;
+		float decay = 1.0 + delta;
+	  gl_FragColor = texture2D(inputTexture, pastCoord) / decay;
 	}
 	`
 }
@@ -90,27 +93,24 @@ var DivergenceShader = {
 	vertexShader: defaultVertexShader,
 	fragmentShader:
 	`
-	precision highp float;
-	precision highp sampler2D;
+	precision mediump float;
+	precision mediump sampler2D;
 
 	varying vec2 vUv;
+
 	uniform float delta;
 	uniform float density;
 	uniform float invGridSize;
 	uniform sampler2D velocity;
 
-	vec2 u(vec2 coord) {
-		return texture2D(velocity, fract(coord)).xy;
-	}
-
 	void main() {
-		gl_FragColor = vec4((-2.0 * invGridSize * density / delta) * (
-			(u(vUv + vec2(invGridSize, 0)).x -
-			 u(vUv - vec2(invGridSize, 0)).x)
-			+
-			(u(vUv + vec2(0, invGridSize)).y -
-			 u(vUv - vec2(0, invGridSize)).y)
-		), 0.0, 0.0, 1.0);
+		vec4 R = texture2D(velocity, vUv + vec2(invGridSize, 0));
+		vec4 L = texture2D(velocity, vUv - vec2(invGridSize, 0));
+		vec4 T = texture2D(velocity, vUv + vec2(0, invGridSize));
+		vec4 B = texture2D(velocity, vUv - vec2(0, invGridSize));
+
+		float div = (-2.0 * invGridSize * density / delta) * ((R.x - L.x) + (T.y - B.y));
+		gl_FragColor = vec4(div, 0.0, 0.0, 1.0);
 	}
 	`
 }
@@ -124,30 +124,24 @@ var PressureJacobiShader = {
 	vertexShader: defaultVertexShader,
 	fragmentShader:
 	`
-	precision highp float;
-	precision highp sampler2D;
+	precision mediump float;
+	precision mediump sampler2D;
 
 	varying vec2 vUv;
+
 	uniform float invGridSize;
 	uniform sampler2D divergence;
 	uniform sampler2D pressure;
 
-	float d(vec2 coord) {
-		return texture2D(divergence, fract(coord)).x;
-	}
+	void main () {
+		float R = texture2D(pressure, vUv + vec2(invGridSize*2.0, 0)).x;
+		float L = texture2D(pressure, vUv - vec2(invGridSize*2.0, 0)).x;
+		float T = texture2D(pressure, vUv + vec2(0, invGridSize*2.0)).x;
+		float B = texture2D(pressure, vUv - vec2(0, invGridSize*2.0)).x;
 
-	float p(vec2 coord) {
-		return texture2D(pressure, fract(coord)).x;
-	}
+		float d = texture2D(divergence, vUv).x;
 
-	void main() {
-		gl_FragColor = vec4(0.25 * (
-			d(vUv)
-			+ p(vUv + vec2(2.0 * invGridSize, 0.0))
-			+ p(vUv - vec2(2.0 * invGridSize, 0.0))
-			+ p(vUv + vec2(0.0, 2.0 * invGridSize))
-			+ p(vUv - vec2(0.0, 2.0 * invGridSize))
-		), 0.0, 0.0, 1.0);
+		gl_FragColor = vec4(0.25 * (d + L + R + B + T), 0.0, 0.0, 1.0);
 	}
 	`
 }
@@ -163,8 +157,8 @@ var SubstractPressureGradient = {
 	vertexShader: defaultVertexShader,
 	fragmentShader:
 	`
-	precision highp float;
-	precision highp sampler2D;
+	precision mediump float;
+	precision mediump sampler2D;
 
 	varying vec2 vUv;
 	uniform float delta;
@@ -173,22 +167,15 @@ var SubstractPressureGradient = {
 	uniform sampler2D velocity;
 	uniform sampler2D pressure;
 
-	float p(vec2 coord) {
-		return texture2D(pressure, fract(coord)).x;
-	}
-
 	void main() {
-		vec2 u_a = texture2D(velocity, vUv).xy;
+		float R = texture2D(pressure, vUv + vec2(invGridSize, 0)).x;
+		float L = texture2D(pressure, vUv - vec2(invGridSize, 0)).x;
+		float T = texture2D(pressure, vUv + vec2(0, invGridSize)).x;
+		float B = texture2D(pressure, vUv - vec2(0, invGridSize)).x;
 
-		float diff_p_x = (p(vUv + vec2(invGridSize, 0.0)) -
-											p(vUv - vec2(invGridSize, 0.0)));
-		float u_x = u_a.x - delta/(2.0 * density * invGridSize) * diff_p_x;
+	  vec2 vel = texture2D(velocity, vUv).xy - delta / (2.0 * invGridSize * density) * vec2(R - L, T - B);
 
-		float diff_p_y = (p(vUv + vec2(0.0, invGridSize)) -
-											p(vUv - vec2(0.0, invGridSize)));
-		float u_y = u_a.y - delta/(2.0 * density * invGridSize) * diff_p_y;
-
-		gl_FragColor = vec4(u_x, u_y, 0.0, 0.0);
+		gl_FragColor = vec4(vel, 0.0, 1.0);
 	}
 	`
 }
