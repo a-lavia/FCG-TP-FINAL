@@ -5,17 +5,17 @@ var defaultVertexShader =
 	void main() {
 
 		vUv = uv;
-		gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+		gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.);
 
 	}
 `
 
 var PaintShader = {
 	uniforms: {
-		'tDiffuse': { value: null },
 		'rgb': { value: new THREE.Vector3(1., 0., 0.) },
 		'center': { value: new THREE.Vector2() },
-		'radius': { value: .001 }
+		'radius': { value: 0.001 },
+		'tDiffuse': { value: null }
 	},
 	vertexShader: defaultVertexShader,
 	fragmentShader:
@@ -23,12 +23,12 @@ var PaintShader = {
 	precision mediump float;
 	precision mediump sampler2D;
 
-	uniform sampler2D tDiffuse;
+	varying vec2 vUv;
+
 	uniform vec3 rgb;
 	uniform vec2 center;
 	uniform float radius;
-
-	varying vec2 vUv;
+	uniform sampler2D tDiffuse;
 
 	void main() {
 		float dx = center.x - vUv.x;
@@ -40,9 +40,9 @@ var PaintShader = {
 
 var AdvectionShader = {
 	uniforms: {
-		'delta': {value: 0.016},
-		'inputTexture': {value: null},
-		'velocity': {value: null}
+		'delta': { value: 0.016 },
+		'advectedField': { value: null },
+		'velocityField': { value: null }
 	},
 	vertexShader: defaultVertexShader,
 	fragmentShader:
@@ -53,23 +53,23 @@ var AdvectionShader = {
 	varying vec2 vUv;
 
 	uniform float delta;
-	uniform sampler2D inputTexture;
-	uniform sampler2D velocity;
+	uniform sampler2D advectedField;
+	uniform sampler2D velocityField;
 
 	void main() {
-	  vec2 pastCoord = vUv - texture2D(velocity, vUv).xy * delta;
-		float decay = 1.0 + delta;
-	  gl_FragColor = texture2D(inputTexture, pastCoord) / decay;
+	  vec2 pastCoord = vUv - texture2D(velocityField, vUv).xy * delta;
+		float decay = 1. + delta;
+	  gl_FragColor = texture2D(advectedField, pastCoord) / decay;
 	}
 	`
 }
 
 var DivergenceShader = {
 	uniforms: {
-		'delta': {value: 0.016},
-		'density': {value: 1.},
-		'invGridSize': {value: 1./512.},
-		'velocity': {value: null}
+		'delta': { value: 0.016 },
+		'density': { value: 1. },
+		'texelSize': { value: 1./512. },
+		'velocityField': { value: null }
 	},
 	vertexShader: defaultVertexShader,
 	fragmentShader:
@@ -81,26 +81,26 @@ var DivergenceShader = {
 
 	uniform float delta;
 	uniform float density;
-	uniform float invGridSize;
-	uniform sampler2D velocity;
+	uniform float texelSize;
+	uniform sampler2D velocityField;
 
 	void main() {
-		float R = texture2D(velocity, vUv + vec2(invGridSize, 0)).x;
-		float L = texture2D(velocity, vUv - vec2(invGridSize, 0)).x;
-		float T = texture2D(velocity, vUv + vec2(0, invGridSize)).y;
-		float B = texture2D(velocity, vUv - vec2(0, invGridSize)).y;
+		float R = texture2D(velocityField, vUv + vec2(texelSize, 0.)).x;
+		float L = texture2D(velocityField, vUv - vec2(texelSize, 0.)).x;
+		float T = texture2D(velocityField, vUv + vec2(0., texelSize)).y;
+		float B = texture2D(velocityField, vUv - vec2(0., texelSize)).y;
 
-		float div = (-2.0 * invGridSize * density / delta) * ((R - L) + (T - B));
-		gl_FragColor = vec4(div, 0.0, 0.0, 1.0);
+		float div = (-2. * texelSize * density / delta) * ((R - L) + (T - B));
+		gl_FragColor = vec4(div, 0., 0., 1.);
 	}
 	`
 }
 
 var PressureJacobiShader = {
 	uniforms: {
-		'invGridSize': {value: 1./512.},
-		'divergence': {value: null},
-		'pressure': {value: null}
+		'texelSize': { value: 1./512. },
+		'divergenceField': { value: null },
+		'pressureField': { value: null }
 	},
 	vertexShader: defaultVertexShader,
 	fragmentShader:
@@ -110,30 +110,30 @@ var PressureJacobiShader = {
 
 	varying vec2 vUv;
 
-	uniform float invGridSize;
-	uniform sampler2D divergence;
-	uniform sampler2D pressure;
+	uniform float texelSize;
+	uniform sampler2D divergenceField;
+	uniform sampler2D pressureField;
 
 	void main () {
-		float R = texture2D(pressure, vUv + vec2(invGridSize*2.0, 0)).x;
-		float L = texture2D(pressure, vUv - vec2(invGridSize*2.0, 0)).x;
-		float T = texture2D(pressure, vUv + vec2(0, invGridSize*2.0)).x;
-		float B = texture2D(pressure, vUv - vec2(0, invGridSize*2.0)).x;
+		float R = texture2D(pressureField, vUv + vec2(texelSize*2., 0.)).x;
+		float L = texture2D(pressureField, vUv - vec2(texelSize*2., 0.)).x;
+		float T = texture2D(pressureField, vUv + vec2(0., texelSize*2.)).x;
+		float B = texture2D(pressureField, vUv - vec2(0., texelSize*2.)).x;
 
-		float d = texture2D(divergence, vUv).x;
+		float d = texture2D(divergenceField, vUv).x;
 
-		gl_FragColor = vec4(0.25 * (d + L + R + B + T), 0.0, 0.0, 1.0);
+		gl_FragColor = vec4(0.25 * (d + L + R + B + T), 0., 0., 1.);
 	}
 	`
 }
 
 var SubstractPressureGradient = {
 	uniforms: {
-		'delta': {value: 0.016},
-		'density': {value: 1.},
-		'invGridSize': {value: 1./512.},
-		'velocity': {value: null},
-		'pressure': {value: null}
+		'delta': { value: 0.016 },
+		'density': { value: 1. },
+		'texelSize': { value: 1./512. },
+		'velocityField': { value: null },
+		'pressureField': { value: null }
 	},
 	vertexShader: defaultVertexShader,
 	fragmentShader:
@@ -142,21 +142,22 @@ var SubstractPressureGradient = {
 	precision mediump sampler2D;
 
 	varying vec2 vUv;
+
 	uniform float delta;
 	uniform float density;
-	uniform float invGridSize;
-	uniform sampler2D velocity;
-	uniform sampler2D pressure;
+	uniform float texelSize;
+	uniform sampler2D velocityField;
+	uniform sampler2D pressureField;
 
 	void main() {
-		float R = texture2D(pressure, vUv + vec2(invGridSize, 0)).x;
-		float L = texture2D(pressure, vUv - vec2(invGridSize, 0)).x;
-		float T = texture2D(pressure, vUv + vec2(0, invGridSize)).x;
-		float B = texture2D(pressure, vUv - vec2(0, invGridSize)).x;
+		float R = texture2D(pressureField, vUv + vec2(texelSize, 0.)).x;
+		float L = texture2D(pressureField, vUv - vec2(texelSize, 0.)).x;
+		float T = texture2D(pressureField, vUv + vec2(0., texelSize)).x;
+		float B = texture2D(pressureField, vUv - vec2(0., texelSize)).x;
 
-	  vec2 vel = texture2D(velocity, vUv).xy - delta / (2.0 * invGridSize * density) * vec2(R - L, T - B);
+	  vec2 vel = texture2D(velocityField, vUv).xy - delta / (2. * texelSize * density) * vec2(R - L, T - B);
 
-		gl_FragColor = vec4(vel, 0.0, 1.0);
+		gl_FragColor = vec4(vel, 0., 1.);
 	}
 	`
 }

@@ -14,15 +14,16 @@ var velocity1 = getWebGLRenderTarget();
 var color0 = getWebGLRenderTarget();
 var color1 = getWebGLRenderTarget();
 
-var divergence = getWebGLRenderTarget();
+var divergence0 = getWebGLRenderTarget();
+
 var pressure0 = getWebGLRenderTarget();
 var pressure1 = getWebGLRenderTarget();
 
 const paintShader = new THREE.ShaderPass(PaintShader);
-const advectPass = new THREE.ShaderPass(AdvectionShader, 'inputTexture');
-const divergencePass = new THREE.ShaderPass(DivergenceShader, 'velocity');
-const pressureJacobiPass = new THREE.ShaderPass(PressureJacobiShader, 'pressure');
-const substractPressurePass = new THREE.ShaderPass(SubstractPressureGradient, 'velocity');
+const advectPass = new THREE.ShaderPass(AdvectionShader, 'advectedField');
+const divergencePass = new THREE.ShaderPass(DivergenceShader, 'velocityField');
+const pressureJacobiPass = new THREE.ShaderPass(PressureJacobiShader, 'pressureField');
+const substractPressurePass = new THREE.ShaderPass(SubstractPressureGradient, 'velocityField');
 const copyPass = new THREE.ShaderPass(THREE.CopyShader);
 
 function getWebGLRenderTarget() {
@@ -40,29 +41,29 @@ function render() {
   requestAnimationFrame(render);
 
   //Advect velocity
-  advectPass.uniforms.velocity.value = velocity0.texture;
+  advectPass.uniforms.velocityField.value = velocity0.texture;
   advectPass.render(renderer, velocity1, velocity0); //Read velocity0 -> Advect -> write to velocity1
-  [velocity0, velocity1] = [velocity1, velocity0]; //Swap velocity0<->velocity1
+  [velocity0, velocity1] = [velocity1, velocity0]; //Swap velocity0 <-> velocity1
 
-  //Divergence
-  divergencePass.render(renderer, divergence, velocity0); //Read velocity0 -> Divergence -> write to divergence
+  //Calc divergence
+  divergencePass.render(renderer, divergence0, velocity0); //Read velocity0 -> Divergence -> write to divergence0
 
   //Jacobi Pressure
-  pressureJacobiPass.uniforms.divergence.value = divergence.texture;
+  pressureJacobiPass.uniforms.divergenceField.value = divergence0.texture;
   for (var i = 0; i < jacobiIterations; i++) {
-    pressureJacobiPass.render(renderer, pressure1, pressure0); //Read pressure0 -> Jacobi pass -> write to pressure1
-    [pressure0, pressure1] = [pressure1, pressure0]; //Swap pressure0<->pressure1
+    pressureJacobiPass.render(renderer, pressure1, pressure0); //Read pressure0 -> Jacobi Iteration -> write to pressure1
+    [pressure0, pressure1] = [pressure1, pressure0]; //Swap pressure0 <-> pressure1
   }
 
-  //Substract
-  substractPressurePass.uniforms.pressure.value = pressure0.texture;
+  //Substract gradient
+  substractPressurePass.uniforms.pressureField.value = pressure0.texture;
   substractPressurePass.render(renderer, velocity1, velocity0); //Read velocity0 -> Substract pass -> write to velocity1
-  [velocity0, velocity1] = [velocity1, velocity0]; //Swap velocity0<->velocity1
+  [velocity0, velocity1] = [velocity1, velocity0]; //Swap velocity0 <-> velocity1
 
   //Advect color
-  advectPass.uniforms.velocity.value = velocity0.texture;
+  advectPass.uniforms.velocityField.value = velocity0.texture;
   advectPass.render(renderer, color1, color0); //Read color0 -> Advect -> write to color1
-  [color0, color1] = [color1, color0]; //Swap color0<->color1
+  [color0, color1] = [color1, color0]; //Swap color0 <-> color1
 
   //Copy color0 to screen
   copyPass.renderToScreen = true;
