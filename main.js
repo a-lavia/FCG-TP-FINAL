@@ -8,8 +8,6 @@ renderer.setPixelRatio(window.devicePixelRatio);
 renderer.setSize(gridSize, gridSize);
 document.body.appendChild(renderer.domElement);
 
-//TODO Debug: velocityFieldVisualizer = new VelocityFieldVisualizer();
-
 var velocity0 = getWebGLRenderTarget();
 var velocity1 = getWebGLRenderTarget();
 
@@ -20,7 +18,6 @@ var divergence = getWebGLRenderTarget();
 var pressure0 = getWebGLRenderTarget();
 var pressure1 = getWebGLRenderTarget();
 
-const initVelocityPass = new THREE.ShaderPass(InitVelocityFieldShader);
 const paintShader = new THREE.ShaderPass(PaintShader);
 const advectPass = new THREE.ShaderPass(AdvectionShader, 'inputTexture');
 const divergencePass = new THREE.ShaderPass(DivergenceShader, 'velocity');
@@ -37,10 +34,6 @@ function getWebGLRenderTarget() {
   };
 
   return new THREE.WebGLRenderTarget(gridSize, gridSize, renderTargetParameters);
-}
-
-function init() {
-  initVelocityPass.render(renderer, velocity0, null);
 }
 
 function render() {
@@ -75,7 +68,6 @@ function render() {
   copyPass.renderToScreen = true;
   copyPass.render(renderer, null, color0);
 
-  //TODO Debug: velocityFieldVisualizer.render(renderer);
 }
 
 var isDragging = false;
@@ -125,5 +117,4 @@ window.addEventListener('mousedown', mouseDown, false);
 window.addEventListener('mouseup', mouseUp, false);
 window.addEventListener('mousemove', mouseMove, false);
 
-init();
 render();

@@ -10,24 +10,6 @@ var defaultVertexShader =
 	}
 `
 
-var InitVelocityFieldShader = {
-	uniforms: {},
-	vertexShader: defaultVertexShader,
-	fragmentShader:
-	`
-	precision mediump float;
-	precision mediump sampler2D;
-
-	#define PI 3.1415926538
-	varying vec2 vUv;
-
-	void main() {
-		//gl_FragColor = vec4(sin(2.0 * PI * vUv.y + PI/2.), sin(2.0 * PI * vUv.x + PI/2.), 0.0, 1.0);
-		gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
-	}
-	`
-};
-
 var PaintShader = {
 	uniforms: {
 		'tDiffuse': { value: null },
@@ -75,7 +57,6 @@ var AdvectionShader = {
 	uniform sampler2D velocity;
 
 	void main() {
-	  //vec2 pastCoord = fract(vUv - u * delta); //fract for repeat
 	  vec2 pastCoord = vUv - texture2D(velocity, vUv).xy * delta;
 		float decay = 1.0 + delta;
 	  gl_FragColor = texture2D(inputTexture, pastCoord) / decay;
@@ -104,12 +85,12 @@ var DivergenceShader = {
 	uniform sampler2D velocity;
 
 	void main() {
-		vec4 R = texture2D(velocity, vUv + vec2(invGridSize, 0));
-		vec4 L = texture2D(velocity, vUv - vec2(invGridSize, 0));
-		vec4 T = texture2D(velocity, vUv + vec2(0, invGridSize));
-		vec4 B = texture2D(velocity, vUv - vec2(0, invGridSize));
+		float R = texture2D(velocity, vUv + vec2(invGridSize, 0)).x;
+		float L = texture2D(velocity, vUv - vec2(invGridSize, 0)).x;
+		float T = texture2D(velocity, vUv + vec2(0, invGridSize)).y;
+		float B = texture2D(velocity, vUv - vec2(0, invGridSize)).y;
 
-		float div = (-2.0 * invGridSize * density / delta) * ((R.x - L.x) + (T.y - B.y));
+		float div = (-2.0 * invGridSize * density / delta) * ((R - L) + (T - B));
 		gl_FragColor = vec4(div, 0.0, 0.0, 1.0);
 	}
 	`
