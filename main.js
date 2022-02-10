@@ -20,7 +20,7 @@ var pressure0 = getWebGLRenderTarget();
 var pressure1 = getWebGLRenderTarget();
 
 const paintShader = new THREE.ShaderPass(PaintShader);
-const advectPass = new THREE.ShaderPass(AdvectionShader, 'advectedField');
+const advectPass = new THREE.ShaderPass(AdvectShader, 'advectedField');
 const divergencePass = new THREE.ShaderPass(DivergenceShader, 'velocityField');
 const pressureJacobiPass = new THREE.ShaderPass(PressureJacobiShader, 'pressureField');
 const substractPressurePass = new THREE.ShaderPass(SubstractPressureGradient, 'velocityField');

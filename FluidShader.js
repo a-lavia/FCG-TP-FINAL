@@ -38,9 +38,10 @@ var PaintShader = {
 	`
 };
 
-var AdvectionShader = {
+var AdvectShader = {
 	uniforms: {
 		'delta': { value: 0.016 },
+		'dissipation': { value: 1. },
 		'advectedField': { value: null },
 		'velocityField': { value: null }
 	},
@@ -53,12 +54,13 @@ var AdvectionShader = {
 	varying vec2 vUv;
 
 	uniform float delta;
+	uniform float dissipation;
 	uniform sampler2D advectedField;
 	uniform sampler2D velocityField;
 
 	void main() {
 	  vec2 pastCoord = vUv - texture2D(velocityField, vUv).xy * delta;
-		float decay = 1. + delta;
+		float decay = 1. + dissipation * delta;
 	  gl_FragColor = texture2D(advectedField, pastCoord) / decay;
 	}
 	`
