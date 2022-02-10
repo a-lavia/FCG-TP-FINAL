@@ -1,28 +1,32 @@
 //Setup Renderer
 
 const parameters = {
-  gridSize: 512,
+  gridSize: 256,
   jacobiIterations: 10,
   velocityDissipation: 1.0,
-  colorDissipation: 1.0
+  colorDissipation: 1.0,
+  stretch: true
 };
 
 const renderer = new THREE.WebGLRenderer({antialias: true});
 
 renderer.setPixelRatio(window.devicePixelRatio);
-renderer.setSize(parameters.gridSize, parameters.gridSize);
+resize();
+
 document.body.appendChild(renderer.domElement);
 
-var velocity0 = getWebGLRenderTarget();
-var velocity1 = getWebGLRenderTarget();
+var velocity0;
+var velocity1;
 
-var color0 = getWebGLRenderTarget();
-var color1 = getWebGLRenderTarget();
+var color0;
+var color1;
 
-var divergence0 = getWebGLRenderTarget();
+var divergence0;
 
-var pressure0 = getWebGLRenderTarget();
-var pressure1 = getWebGLRenderTarget();
+var pressure0;
+var pressure1;
+
+initFramebuffers();
 
 const paintShader = new THREE.ShaderPass(PaintShader);
 const advectPass = new THREE.ShaderPass(AdvectShader, 'advectedField');
@@ -30,6 +34,16 @@ const divergencePass = new THREE.ShaderPass(DivergenceShader, 'velocityField');
 const pressureJacobiPass = new THREE.ShaderPass(PressureJacobiShader, 'pressureField');
 const substractPressurePass = new THREE.ShaderPass(SubstractPressureGradient, 'velocityField');
 const copyPass = new THREE.ShaderPass(THREE.CopyShader);
+
+function initFramebuffers() {
+  velocity0 = getWebGLRenderTarget();
+  velocity1 = getWebGLRenderTarget();
+  color0 = getWebGLRenderTarget();
+  color1 = getWebGLRenderTarget();
+  divergence0 = getWebGLRenderTarget();
+  pressure0 = getWebGLRenderTarget();
+  pressure1 = getWebGLRenderTarget();
+}
 
 function getWebGLRenderTarget() {
   const renderTargetParameters = {
@@ -78,6 +92,15 @@ function render() {
 
 }
 
+function resize() {
+  if (parameters.stretch) {
+    var size = Math.min(window.innerWidth, window.innerHeight);
+    renderer.setSize(size, size);
+  } else {
+    renderer.setSize(parameters.gridSize, parameters.gridSize);
+  }
+}
+
 var isDragging = false;
 var cursorColor = new THREE.Vector3();
 
@@ -100,14 +123,19 @@ function mouseUp(event) {
 
 function mouseMove(event) {
   if (isDragging) {
+    let width = renderer.domElement.width;
+    let height = renderer.domElement.height;
+
+    console.log(width);
+
     let len = event.movementX * event.movementX + event.movementY * event.movementY;
-    paintShader.uniforms.radius.value = len/100000.;
+    paintShader.uniforms.radius.value = len/500000. * parameters.gridSize / width;
     //Velocity field
-    paintShader.uniforms.rgb.value.x = event.movementX / parameters.gridSize * 10.;
-    paintShader.uniforms.rgb.value.y = -event.movementY / parameters.gridSize * 10.;
+    paintShader.uniforms.rgb.value.x = event.movementX / width * 10.;
+    paintShader.uniforms.rgb.value.y = -event.movementY / height * 10.;
     paintShader.uniforms.rgb.value.z = 0.;
-    paintShader.uniforms.center.value.x = event.x / parameters.gridSize;
-    paintShader.uniforms.center.value.y = 1. - event.y / parameters.gridSize;
+    paintShader.uniforms.center.value.x = event.x / width;
+    paintShader.uniforms.center.value.y = 1. - event.y / height;
 
     paintShader.render(renderer, velocity1, velocity0);
     [velocity0, velocity1] = [velocity1, velocity0];
@@ -119,6 +147,7 @@ function mouseMove(event) {
   }
 }
 
+window.addEventListener('resize', resize, false);
 window.addEventListener('mousedown', mouseDown, false);
 window.addEventListener('mouseup', mouseUp, false);
 window.addEventListener('mousemove', mouseMove, false);
