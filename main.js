@@ -1,5 +1,4 @@
-//Setup Renderer
-
+//Parameters
 const parameters = {
   gridSize: 256,
   jacobiIterations: 10,
@@ -8,32 +7,30 @@ const parameters = {
   stretch: true
 };
 
+//Setup Renderer
 const renderer = new THREE.WebGLRenderer({antialias: true});
-
 renderer.setPixelRatio(window.devicePixelRatio);
 resize();
-
 document.body.appendChild(renderer.domElement);
 
+//Frame buffers
 var velocity0;
 var velocity1;
-
 var color0;
 var color1;
-
 var divergence0;
-
 var pressure0;
 var pressure1;
 
-initFramebuffers();
-
+//Shader passes
 const paintShader = new THREE.ShaderPass(PaintShader);
 const advectPass = new THREE.ShaderPass(AdvectShader, 'advectedField');
 const divergencePass = new THREE.ShaderPass(DivergenceShader, 'velocityField');
 const pressureJacobiPass = new THREE.ShaderPass(PressureJacobiShader, 'pressureField');
 const substractPressurePass = new THREE.ShaderPass(SubstractPressureGradient, 'velocityField');
 const copyPass = new THREE.ShaderPass(THREE.CopyShader);
+
+initFramebuffers();
 
 function initFramebuffers() {
   velocity0 = getWebGLRenderTarget();
@@ -43,6 +40,10 @@ function initFramebuffers() {
   divergence0 = getWebGLRenderTarget();
   pressure0 = getWebGLRenderTarget();
   pressure1 = getWebGLRenderTarget();
+
+  divergencePass.uniforms.texelSize.value = 1. / parameters.gridSize;
+  pressureJacobiPass.uniforms.texelSize.value = 1. / parameters.gridSize;
+  substractPressurePass.uniforms.texelSize.value = 1. / parameters.gridSize;
 }
 
 function getWebGLRenderTarget() {
