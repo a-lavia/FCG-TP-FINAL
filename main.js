@@ -1,11 +1,16 @@
 //Setup Renderer
-var gridSize = 512;
-var jacobiIterations = 10;
+
+const parameters = {
+  gridSize: 512,
+  jacobiIterations: 10,
+  velocityDissipation: 1.0,
+  colorDissipation: 1.0
+};
 
 const renderer = new THREE.WebGLRenderer({antialias: true});
 
 renderer.setPixelRatio(window.devicePixelRatio);
-renderer.setSize(gridSize, gridSize);
+renderer.setSize(parameters.gridSize, parameters.gridSize);
 document.body.appendChild(renderer.domElement);
 
 var velocity0 = getWebGLRenderTarget();
@@ -34,7 +39,7 @@ function getWebGLRenderTarget() {
     type: THREE.FloatType
   };
 
-  return new THREE.WebGLRenderTarget(gridSize, gridSize, renderTargetParameters);
+  return new THREE.WebGLRenderTarget(parameters.gridSize, parameters.gridSize, renderTargetParameters);
 }
 
 function render() {
@@ -42,6 +47,7 @@ function render() {
 
   //Advect velocity
   advectPass.uniforms.velocityField.value = velocity0.texture;
+  advectPass.uniforms.dissipation.value = parameters.velocityDissipation;
   advectPass.render(renderer, velocity1, velocity0); //Read velocity0 -> Advect -> write to velocity1
   [velocity0, velocity1] = [velocity1, velocity0]; //Swap velocity0 <-> velocity1
 
@@ -50,7 +56,7 @@ function render() {
 
   //Jacobi Pressure
   pressureJacobiPass.uniforms.divergenceField.value = divergence0.texture;
-  for (var i = 0; i < jacobiIterations; i++) {
+  for (var i = 0; i < parameters.jacobiIterations; i++) {
     pressureJacobiPass.render(renderer, pressure1, pressure0); //Read pressure0 -> Jacobi Iteration -> write to pressure1
     [pressure0, pressure1] = [pressure1, pressure0]; //Swap pressure0 <-> pressure1
   }
@@ -62,6 +68,7 @@ function render() {
 
   //Advect color
   advectPass.uniforms.velocityField.value = velocity0.texture;
+  advectPass.uniforms.dissipation.value = parameters.colorDissipation;
   advectPass.render(renderer, color1, color0); //Read color0 -> Advect -> write to color1
   [color0, color1] = [color1, color0]; //Swap color0 <-> color1
 
@@ -94,22 +101,20 @@ function mouseUp(event) {
 function mouseMove(event) {
   if (isDragging) {
     let len = event.movementX * event.movementX + event.movementY * event.movementY;
-    paintShader.uniforms.radius.value = len/1000.*0.01;
+    paintShader.uniforms.radius.value = len/100000.;
     //Velocity field
-    paintShader.uniforms.rgb.value.x = event.movementX / gridSize * 10.;
-    paintShader.uniforms.rgb.value.y = -event.movementY / gridSize * 10.;
-    paintShader.uniforms.rgb.value.z = 0.0;
-    paintShader.uniforms.center.value.x = event.x / gridSize;
-    paintShader.uniforms.center.value.y = 1. - event.y / gridSize;
+    paintShader.uniforms.rgb.value.x = event.movementX / parameters.gridSize * 10.;
+    paintShader.uniforms.rgb.value.y = -event.movementY / parameters.gridSize * 10.;
+    paintShader.uniforms.rgb.value.z = 0.;
+    paintShader.uniforms.center.value.x = event.x / parameters.gridSize;
+    paintShader.uniforms.center.value.y = 1. - event.y / parameters.gridSize;
 
     paintShader.render(renderer, velocity1, velocity0);
     [velocity0, velocity1] = [velocity1, velocity0];
 
     //Color field
     paintShader.uniforms.rgb.value.set(cursorColor.x, cursorColor.y, cursorColor.z);
-    paintShader.uniforms.center.value.y = 1. - event.y / gridSize;
     paintShader.render(renderer, color1, color0);
-
     [color0, color1] = [color1, color0];
   }
 }

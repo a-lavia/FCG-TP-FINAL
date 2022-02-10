@@ -1,11 +1,6 @@
 const gui = new dat.GUI();
 
-const advectParameter = {
-  dissipation: 1.0
-};
+const parametersFolder = gui.addFolder('Parameters');
 
-const advectFolder = gui.addFolder('Advect');
-
-advectFolder.add(advectParameter, 'dissipation').min(0.).max(4.).step(0.01).onChange((value) => {
-  advectPass.uniforms.dissipation.value = value;
-});
+parametersFolder.add(parameters, 'velocityDissipation').min(0.1).max(10.).step(0.1);
+parametersFolder.add(parameters, 'colorDissipation').min(0.1).max(10.).step(0.1);
