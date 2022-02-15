@@ -42,6 +42,7 @@ var AdvectShader = {
 	uniforms: {
 		'delta': { value: 0.016 },
 		'dissipation': { value: 1. },
+		'texelSize': { value: 1./512. },
 		'advectedField': { value: null },
 		'velocityField': { value: null }
 	},
@@ -55,13 +56,26 @@ var AdvectShader = {
 
 	uniform float delta;
 	uniform float dissipation;
+	uniform float texelSize;
 	uniform sampler2D advectedField;
 	uniform sampler2D velocityField;
+
+	vec4 bilerp (sampler2D sam, vec2 uv) {
+			vec2 st = uv / texelSize - 0.5;
+			vec2 iuv = floor(st);
+			vec2 fuv = fract(st);
+			vec4 a = texture2D(sam, (iuv + vec2(0.5, 0.5)) * texelSize);
+			vec4 b = texture2D(sam, (iuv + vec2(1.5, 0.5)) * texelSize);
+			vec4 c = texture2D(sam, (iuv + vec2(0.5, 1.5)) * texelSize);
+			vec4 d = texture2D(sam, (iuv + vec2(1.5, 1.5)) * texelSize);
+			return mix(mix(a, b, fuv.x), mix(c, d, fuv.x), fuv.y);
+	}
 
 	void main() {
 	  vec2 pastCoord = vUv - texture2D(velocityField, vUv).xy * delta;
 		float decay = 1. + dissipation * delta;
-	  gl_FragColor = texture2D(advectedField, pastCoord) / decay;
+	  //gl_FragColor = texture2D(advectedField, pastCoord) / decay;
+		gl_FragColor = bilerp(advectedField, pastCoord) / decay;
 	}
 	`
 }

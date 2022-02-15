@@ -41,6 +41,7 @@ function initFramebuffers() {
   pressure0 = getWebGLRenderTarget();
   pressure1 = getWebGLRenderTarget();
 
+  advectPass.uniforms.texelSize.value = 1. / parameters.gridSize;
   divergencePass.uniforms.texelSize.value = 1. / parameters.gridSize;
   pressureJacobiPass.uniforms.texelSize.value = 1. / parameters.gridSize;
   substractPressurePass.uniforms.texelSize.value = 1. / parameters.gridSize;

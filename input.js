@@ -20,10 +20,9 @@ function mouseMove(event) {
     let width = renderer.domElement.width;
     let height = renderer.domElement.height;
 
-    console.log(width);
-
     let len = event.movementX * event.movementX + event.movementY * event.movementY;
     paintShader.uniforms.radius.value = len/500000. * parameters.gridSize / width;
+
     //Velocity field
     paintShader.uniforms.rgb.value.x = event.movementX / width * 10.;
     paintShader.uniforms.rgb.value.y = -event.movementY / height * 10.;
